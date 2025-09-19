@@ -5,7 +5,6 @@ import React, { useMemo } from "react";
 
 export default function MapScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
-  const { getMapHeader } = useHeader();
 
   const mapConfig = useMemo(() => {
     switch (type) {
@@ -30,11 +29,9 @@ export default function MapScreen() {
   const injectedJS = useMemo(() => createCleanupJS(mapConfig.cleanupConfig), [mapConfig.cleanupConfig]);
 
   return (
-    <HeaderWrapper {...getMapHeader(type || 'greenmap')}>
-      <FullscreenWebView
-        uriFallback={mapConfig.url}
-        injectedJavaScript={injectedJS}
-      />
-    </HeaderWrapper>
+    <FullscreenWebView
+      uriFallback={mapConfig.url}
+      injectedJavaScript={injectedJS}
+    />
   );
 }
