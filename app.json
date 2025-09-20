@@ -17,8 +17,10 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.anonymous.greensocial",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/adaptive-icon.png", 
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -34,6 +36,18 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf92658f-c127-4604-948e-32ddfd28cfe0"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bf92658f-c127-4604-948e-32ddfd28cfe0"
     }
   }
 }
