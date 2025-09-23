@@ -18,7 +18,7 @@ src/
 │   └── index.ts         # Barrel exports
 ├── services/            # API services & external integrations
 │   ├── api.ts           # Axios configuration
-│   ├── auth.service.ts  # Authentication service class
+│   ├── # auth.service.ts đã được tích hợp vào AuthContext
 │   ├── community.service.ts # Community service class
 │   ├── store.service.ts # Store service class
 │   ├── maps.service.ts  # Maps service class
@@ -34,7 +34,7 @@ src/
 ├── hooks/               # Custom hooks
 │   ├── useClientOnlyValue.ts
 │   ├── useColorScheme.ts
-│   ├── useAuth.ts       # Authentication hook
+│   ├── # useAuth.ts đã được tích hợp vào AuthContext
 │   ├── useCommunity.ts  # Community hook
 │   └── index.ts
 ├── utils/               # Utility functions
@@ -107,7 +107,8 @@ import { useColorScheme, useClientOnlyValue } from '@/hooks';
 import { WindyScreen, GreenMapScreen } from '@/screens';
 
 // Import services
-import { authService, communityService } from '@/services';
+import { CommunityService } from '@/services/community.service';
+// authService đã được tích hợp vào AuthContext
 
 // Import utils
 import { createCleanupJS, WINDY_CLEANUP_CONFIG } from '@/utils';
@@ -131,7 +132,8 @@ Dự án có cấu trúc service layer hoàn chỉnh với:
 ### Sử dụng services với hooks
 
 ```typescript
-import { useAuth, useCommunity } from '@/hooks';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCommunity } from '@/hooks';
 
 function MyComponent() {
   const {
@@ -180,14 +182,15 @@ function MyComponent() {
 ### Sử dụng services trực tiếp
 
 ```typescript
-import { useServices } from '@/services';
+import { useServices } from '@/services/ServicesProvider';
 
 function MyComponent() {
-  const { AuthService, CommunityService } = useServices();
+  const { CommunityService } = useServices();
 
   const handleDirectCall = async () => {
     try {
-      const user = await AuthService.getProfile();
+      // AuthService đã được tích hợp vào AuthContext
+      // Sử dụng useAuth() thay vì AuthService
       const posts = await CommunityService.getPosts(1, 10);
       console.log('User:', user);
       console.log('Posts:', posts);

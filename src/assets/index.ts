@@ -1,9 +1,12 @@
-// Asset exports
-// Add asset exports here when needed
+// Image assets
+export { default as AdaptiveIcon } from './images/adaptive-icon.png';
+export { default as Favicon } from './images/favicon.png';
+export { default as Icon } from './images/icon.png';
+export { default as SplashIcon } from './images/splash-icon.png';
 
-// Example: export { default as Logo } from './images/logo.png';
-// Example: export { default as Icon } from './images/icon.png';
+// Font assets
+export { default as SpaceMonoRegular } from './fonts/SpaceMono-Regular.ttf';
 
-// Re-export commonly used types for convenience
+// Type exports
 export type { TabBarIconProps, WebViewProps } from '@/types';
 

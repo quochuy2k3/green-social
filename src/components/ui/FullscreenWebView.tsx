@@ -50,18 +50,17 @@ export default function FullscreenWebView({ html, uriFallback, injectedJavaScrip
         incognito={false}
         userAgent={userAgent}
         injectedJavaScript={injectedJavaScript}
-        // injectedJavaScriptBeforeContentLoaded={injectedJavaScript}
         onLoadEnd={handleLoadEnd}
         onLoadStart={handleLoadStart}
         style={styles.webview}
         androidLayerType="hardware"
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          console.warn('WebView error: ', nativeEvent);
+          // WebView error
         }}
         onHttpError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          console.warn('WebView HTTP error: ', nativeEvent);
+          // WebView HTTP error
         }}
       />
     </View>

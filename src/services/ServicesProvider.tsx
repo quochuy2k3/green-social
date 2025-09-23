@@ -3,23 +3,35 @@ import React, { createContext, useContext } from "react";
 import { AchievementService } from "./achievement.service";
 import { AuthService } from "./auth.service";
 import { CommunityService } from "./community.service";
+import { GreenMapService } from "./green-map.service";
+import { HeatReportsService } from "./heat-reports.service";
 import { MapsService } from "./maps.service";
+import { NotificationService } from "./notification.service";
+import { StorageService } from "./storage.service";
 import { StoreService } from "./store.service";
+import { WeatherService } from "./weather.service";
 
-// Create service instances
 const authService = new AuthService();
 const communityService = new CommunityService();
 const storeService = new StoreService();
 const mapsService = new MapsService();
 const achievementService = new AchievementService();
-
-// Services object
+const storageService = new StorageService();
+const notificationService = new NotificationService();
+const weatherService = new WeatherService();
+const greenMapService = new GreenMapService();
+const heatReportsService = new HeatReportsService();
 export const services = {
   AuthService: authService,
   CommunityService: communityService,
   StoreService: storeService,
   MapsService: mapsService,
   AchievementService: achievementService,
+  StorageService: storageService,
+  NotificationService: notificationService,
+  WeatherService: weatherService,
+  GreenMapService: greenMapService,
+  HeatReportsService: heatReportsService,
 } as const;
 
 type Services = typeof services;
@@ -34,7 +46,6 @@ export function useServices() {
   return context;
 }
 
-// Create QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

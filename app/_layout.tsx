@@ -6,15 +6,15 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks';
-import { ServicesProvider } from '@/services';
+import ServicesProvider from '@/services/ServicesProvider';
 import ThemeProvider from '@/theme';
 
 export {
@@ -60,13 +60,33 @@ function RootLayoutNav() {
   return (
     <ThemeProvider theme={colorScheme === 'dark' ? 'dark' : 'light'}>
       <ServicesProvider>
-        <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(home)" options={{ headerShown: false }} />
-            <Stack.Screen name="(maps)" />
-          </Stack>
-        </NavigationThemeProvider>
+        <AuthProvider>
+          <InitialLayout />
+        </AuthProvider>
       </ServicesProvider>
     </ThemeProvider>
   );
+}
+
+function InitialLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+  console.log('isAuthenticated', isAuthenticated);
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/auth/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Redirect to home if authenticated and in auth group
+      router.replace('/(home)');
+    }
+  }, [isAuthenticated, isLoading, segments]);
+
+  return <Slot />;
 }

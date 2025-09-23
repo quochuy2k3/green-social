@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 
-import { useClientOnlyValue, useColorScheme } from '@/hooks';
+import { useColorScheme } from '@/hooks';
 import { TabBarIcon } from '@/navigation';
 
 export default function TabLayout() {
@@ -35,7 +35,7 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginTop: 4,
         },
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
         headerStyle: {
           backgroundColor: '#ffffff',
           elevation: 0,

@@ -1,205 +1,200 @@
-import { useServices } from '@/services/ServicesProvider';
-import type {
-  Comment,
-  CreateCommentRequest,
-  CreatePostRequest,
-  PaginatedResponse,
-  Post,
-} from '@/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CommunityService } from '@/services/community.service';
+import type { PostCreate, PostResponse } from '@/types';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
-export function useCommunity() {
-  const { CommunityService } = useServices();
-  const queryClient = useQueryClient();
+interface UseCommunityReturn {
+  posts: PostResponse[];
+  loading: boolean;
+  refreshing: boolean;
+  error: string | null;
+  hasMore: boolean;
+  loadPosts: (refresh?: boolean) => Promise<void>;
+  createPost: (content: string, imageUploadIds?: string[], location?: Record<string, number>, isHeatReport?: boolean, temperature?: number, heatSeverity?: string) => Promise<boolean>;
+  addReaction: (postId: string, reactionType: string) => Promise<void>;
+  removeReaction: (postId: string) => Promise<void>;
+  addComment: (postId: string, content: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
+  refreshPosts: () => Promise<void>;
+}
 
-  // Get posts with pagination
-  const usePosts = (page: number = 1, limit: number = 10) => {
-    return useQuery({
-      queryKey: ['posts', page, limit],
-      queryFn: () => CommunityService.getPosts(page, limit),
-      placeholderData: (previousData) => previousData,
-    });
-  };
+export const useCommunity = (): UseCommunityReturn => {
+  const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [skip, setSkip] = useState(0);
 
-  // Get single post
-  const usePost = (postId: string) => {
-    return useQuery({
-      queryKey: ['post', postId],
-      queryFn: () => CommunityService.getPost(postId),
-      enabled: !!postId,
-    });
-  };
+  const communityService = new CommunityService();
+  const LIMIT = 20;
 
-  // Get post comments
-  const usePostComments = (postId: string, page: number = 1, limit: number = 20) => {
-    return useQuery({
-      queryKey: ['post', postId, 'comments', page, limit],
-      queryFn: () => CommunityService.getComments(postId, page, limit),
-      enabled: !!postId,
-      placeholderData: (previousData) => previousData,
-    });
-  };
+  const loadPosts = useCallback(async (refresh = false) => {
+    try {
+      if (refresh) {
+        setRefreshing(true);
+        setSkip(0);
+        setHasMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      setError(null);
+      
+        const currentSkip = refresh ? 0 : skip;
+      
+      // Use real API
+      const newPosts = await communityService.getPosts(currentSkip, LIMIT);
+      
+      if (refresh) {
+        setPosts(newPosts);
+      } else {
+        setPosts(prev => [...prev, ...newPosts]);
+      }
+      
+      setSkip(currentSkip + LIMIT);
+      setHasMore(newPosts.length === LIMIT);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi tải bài viết';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [skip]);
 
-  // Create post mutation
-  const createPostMutation = useMutation({
-    mutationFn: (postData: CreatePostRequest) => CommunityService.createPost(postData),
-    onSuccess: () => {
-      // Invalidate posts queries to refetch
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-    },
-  });
+  const createPost = useCallback(async (
+    content: string, 
+    imageUploadIds?: string[], 
+    location?: Record<string, number>, 
+    isHeatReport?: boolean, 
+    temperature?: number, 
+    heatSeverity?: string
+  ): Promise<boolean> => {
+    try {
+      setError(null);
+      
+      const postData: PostCreate = {
+        content,
+        image_upload_ids: imageUploadIds,
+        location,
+        is_heat_report: isHeatReport,
+        temperature,
+        heat_severity: heatSeverity,
+      };
+      
+      // Use real API
+      const newPost = await communityService.createPost(postData);
+      
+      // Add the new post to the beginning of the list
+      setPosts(prev => [newPost, ...prev]);
+      
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi tạo bài viết';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+      return false;
+    }
+  }, []);
 
-  // Update post mutation
-  const updatePostMutation = useMutation({
-    mutationFn: ({ postId, postData }: { postId: string; postData: Partial<CreatePostRequest> }) =>
-      CommunityService.updatePost(postId, postData),
-    onSuccess: (updatedPost, { postId }) => {
-      // Update the specific post in cache
-      queryClient.setQueryData(['post', postId], updatedPost);
-      // Invalidate posts list to refetch
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-    },
-  });
+  const addReaction = useCallback(async (postId: string, reactionType: string) => {
+    try {
+      setError(null);
+      
+      // Use real API
+      const updatedPost = await communityService.addReaction(postId, reactionType as 'like' | 'heart');
+      
+      // Update the post in the list
+      setPosts(prev => prev.map(post => 
+        post.id === postId ? updatedPost : post
+      ));
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi thêm phản ứng';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+    }
+  }, []);
 
-  // Delete post mutation
-  const deletePostMutation = useMutation({
-    mutationFn: (postId: string) => CommunityService.deletePost(postId),
-    onSuccess: (_, postId) => {
-      // Remove the post from cache
-      queryClient.removeQueries({ queryKey: ['post', postId] });
-      // Invalidate posts list to refetch
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-    },
-  });
+  const removeReaction = useCallback(async (postId: string) => {
+    try {
+      setError(null);
+      
+      // Use real API
+      const updatedPost = await communityService.removeReaction(postId);
+      
+      // Update the post in the list
+      setPosts(prev => prev.map(post => 
+        post.id === postId ? updatedPost : post
+      ));
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa phản ứng';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+    }
+  }, []);
 
-  // Toggle like mutation
-  const toggleLikeMutation = useMutation({
-    mutationFn: (postId: string) => CommunityService.toggleLike(postId),
-    onSuccess: (data, postId) => {
-      // Update the post's like status in cache
-      queryClient.setQueryData(['post', postId], (oldData: Post | undefined) => {
-        if (oldData) {
-          return {
-            ...oldData,
-            isLiked: data.isLiked,
-            likesCount: data.likesCount,
-          };
-        }
-        return oldData;
-      });
-      // Update posts list cache
-      queryClient.setQueriesData({ queryKey: ['posts'] }, (oldData: PaginatedResponse<Post> | undefined) => {
-        if (oldData) {
-          return {
-            ...oldData,
-            data: oldData.data.map(post =>
-              post.id === postId
-                ? { ...post, isLiked: data.isLiked, likesCount: data.likesCount }
-                : post
-            ),
-          };
-        }
-        return oldData;
-      });
-    },
-  });
+  const addComment = useCallback(async (postId: string, content: string) => {
+    try {
+      setError(null);
+      
+      // Use real API
+      const updatedPost = await communityService.addComment(postId, { content });
+      
+      // Update the post in the list
+      setPosts(prev => prev.map(post => 
+        post.id === postId ? updatedPost : post
+      ));
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi thêm bình luận';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+    }
+  }, []);
 
-  // Create comment mutation
-  const createCommentMutation = useMutation({
-    mutationFn: (commentData: CreateCommentRequest) => CommunityService.createComment(commentData),
-    onSuccess: (newComment, { postId }) => {
-      // Invalidate comments for this post
-      queryClient.invalidateQueries({ queryKey: ['post', postId, 'comments'] });
-      // Update post's comment count
-      queryClient.setQueryData(['post', postId], (oldData: Post | undefined) => {
-        if (oldData) {
-          return { ...oldData, commentsCount: oldData.commentsCount + 1 };
-        }
-        return oldData;
-      });
-    },
-  });
+  const deletePost = useCallback(async (postId: string) => {
+    try {
+      setError(null);
+      
+      // Use real API
+      await communityService.deletePost(postId);
+      
+      // Remove the post from the list
+      setPosts(prev => prev.filter(post => post.id !== postId));
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa bài viết';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
+    }
+  }, []);
 
-  // Update comment mutation
-  const updateCommentMutation = useMutation({
-    mutationFn: ({ commentId, content }: { commentId: string; content: string }) =>
-      CommunityService.updateComment(commentId, content),
-    onSuccess: (updatedComment, { commentId }) => {
-      // Update comment in cache
-      queryClient.setQueriesData({ queryKey: ['post'] }, (oldData: any) => {
-        if (oldData?.data) {
-          return {
-            ...oldData,
-            data: oldData.data.map((comment: Comment) =>
-              comment.id === commentId ? updatedComment : comment
-            ),
-          };
-        }
-        return oldData;
-      });
-    },
-  });
+  const refreshPosts = useCallback(async () => {
+    await loadPosts(true);
+  }, [loadPosts]);
 
-  // Delete comment mutation
-  const deleteCommentMutation = useMutation({
-    mutationFn: (commentId: string) => CommunityService.deleteComment(commentId),
-    onSuccess: (_, commentId) => {
-      // Remove comment from cache
-      queryClient.setQueriesData({ queryKey: ['post'] }, (oldData: any) => {
-        if (oldData?.data) {
-          return {
-            ...oldData,
-            data: oldData.data.filter((comment: Comment) => comment.id !== commentId),
-          };
-        }
-        return oldData;
-      });
-    },
-  });
+  // Load initial posts
+  useEffect(() => {
+    loadPosts(true);
+  }, []);
 
   return {
-    // Queries
-    usePosts,
-    usePost,
-    usePostComments,
-
-    // Post mutations
-    createPost: createPostMutation.mutate,
-    createPostAsync: createPostMutation.mutateAsync,
-    isCreatingPost: createPostMutation.isPending,
-
-    updatePost: updatePostMutation.mutate,
-    updatePostAsync: updatePostMutation.mutateAsync,
-    isUpdatingPost: updatePostMutation.isPending,
-
-    deletePost: deletePostMutation.mutate,
-    deletePostAsync: deletePostMutation.mutateAsync,
-    isDeletingPost: deletePostMutation.isPending,
-
-    toggleLike: toggleLikeMutation.mutate,
-    toggleLikeAsync: toggleLikeMutation.mutateAsync,
-    isTogglingLike: toggleLikeMutation.isPending,
-
-    // Comment mutations
-    createComment: createCommentMutation.mutate,
-    createCommentAsync: createCommentMutation.mutateAsync,
-    isCreatingComment: createCommentMutation.isPending,
-
-    updateComment: updateCommentMutation.mutate,
-    updateCommentAsync: updateCommentMutation.mutateAsync,
-    isUpdatingComment: updateCommentMutation.isPending,
-
-    deleteComment: deleteCommentMutation.mutate,
-    deleteCommentAsync: deleteCommentMutation.mutateAsync,
-    isDeletingComment: deleteCommentMutation.isPending,
-
-    // Error states
-    createPostError: createPostMutation.error,
-    updatePostError: updatePostMutation.error,
-    deletePostError: deletePostMutation.error,
-    toggleLikeError: toggleLikeMutation.error,
-    createCommentError: createCommentMutation.error,
-    updateCommentError: updateCommentMutation.error,
-    deleteCommentError: deleteCommentMutation.error,
+    posts,
+    loading,
+    refreshing,
+    error,
+    hasMore,
+    loadPosts,
+    createPost,
+    addReaction,
+    removeReaction,
+    addComment,
+    deletePost,
+    refreshPosts,
   };
-}
+};

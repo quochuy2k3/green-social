@@ -1,92 +1,88 @@
-import { API_CONFIG, ENV_CONFIG } from '@/constants';
-import type {
-  AuthResponse,
+import {
+  GoogleAuthRequest,
   LoginRequest,
-  RegisterRequest,
-  UpdateProfileRequest,
-  User
-} from '@/types';
-import { api } from './api';
-import { authMockService } from './mockService';
+  Token,
+  UserCreate,
+  UserProfile
+} from '@/types/api';
+import apiClient, { setAuthToken } from './api';
 
 export class AuthService {
-  // Login user
-  async login(credentials: LoginRequest): Promise<AuthResponse> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return authMockService.login(credentials.email, credentials.password);
-    }
-    
-    return api.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, credentials);
+  /**
+   * Register a new user
+   */
+  async register(userData: UserCreate): Promise<Token> {
+    const response = await apiClient.post<Token>('/auth/register', userData);
+    return response.data;
   }
 
-  // Register user
-  async register(userData: RegisterRequest): Promise<AuthResponse> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return authMockService.register(userData);
-    }
+  /**
+   * Login with username and password
+   */
+  async login(credentials: LoginRequest): Promise<Token> {
+    // Convert to form data format for OAuth2
+    const formData = new URLSearchParams();
+    formData.append('grant_type', credentials.grant_type || 'password');
+    formData.append('username', credentials.username);
+    formData.append('password', credentials.password);
+    formData.append('scope', credentials.scope || '');
+    formData.append('client_id', credentials.client_id || 'string');
+    formData.append('client_secret', credentials.client_secret || '********');
     
-    return api.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData);
-  }
-
-  // Refresh token
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return authMockService.login('test@example.com', 'password');
-    }
-    
-    return api.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH.REFRESH, {
-      refreshToken,
+    const response = await apiClient.post<Token>('/auth/login', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
+    return response.data;
   }
 
-  // Logout user
+  /**
+   * Google authentication
+   */
+  async googleAuth(googleData: GoogleAuthRequest): Promise<Token> {
+    const response = await apiClient.post<Token>('/auth/google', googleData);
+    return response.data;
+  }
+
+  /**
+   * Get current user profile
+   */
+  async getCurrentUser(): Promise<UserProfile> {
+    const response = await apiClient.get<UserProfile>('/users/me');
+    return response.data;
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userData: Partial<UserProfile>): Promise<UserProfile> {
+    const response = await apiClient.put<UserProfile>('/users/me', userData);
+    return response.data;
+  }
+
+  /**
+   * Logout user
+   */
   async logout(): Promise<void> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return Promise.resolve();
-    }
-    
-    return api.post<void>(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
+    // Clear token from storage and axios headers
+    setAuthToken(null);
+    // Note: API doesn't have logout endpoint, so we just clear local token
   }
 
-  // Get user profile
-  async getProfile(): Promise<User> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return authMockService.getProfile();
-    }
-    
-    return api.get<User>(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
+  /**
+   * Set authentication token
+   */
+  setToken(token: string): void {
+    setAuthToken(token);
   }
 
-  // Update user profile
-  async updateProfile(profileData: UpdateProfileRequest): Promise<User> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return authMockService.updateProfile(profileData);
-    }
-    
-    return api.put<User>(API_CONFIG.ENDPOINTS.USERS.UPDATE_PROFILE, profileData);
-  }
-
-  // Upload avatar
-  async uploadAvatar(imageUri: string): Promise<{ avatar: string }> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return Promise.resolve({ avatar: 'https://via.placeholder.com/150' });
-    }
-    
-    const formData = new FormData();
-    formData.append('avatar', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'avatar.jpg',
-    } as any);
-
-    return api.post<{ avatar: string }>(
-      API_CONFIG.ENDPOINTS.USERS.UPLOAD_AVATAR,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+  /**
+   * Clear authentication token
+   */
+  clearToken(): void {
+    setAuthToken(null);
   }
 }
+
+export const authService = new AuthService();

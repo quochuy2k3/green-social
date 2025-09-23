@@ -1,110 +1,104 @@
-import { API_CONFIG, ENV_CONFIG } from '@/constants';
-import type {
-  Comment,
-  CreateCommentRequest,
-  CreatePostRequest,
-  PaginatedResponse,
-  Post,
-} from '@/types';
-import { api } from './api';
-import { communityMockService } from './mockService';
+import {
+  CommentRequest,
+  PostCreate,
+  PostResponse,
+  PostUpdate,
+  ReactionRequest,
+  UserProfile
+} from '@/types/api';
+import apiClient from './api';
 
 export class CommunityService {
-  // Get posts with pagination
-  async getPosts(page: number = 1, limit: number = 10): Promise<PaginatedResponse<Post>> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.getPosts(page, limit);
-    }
-    
-    return api.get<PaginatedResponse<Post>>(
-      `${API_CONFIG.ENDPOINTS.COMMUNITY.POSTS}?page=${page}&limit=${limit}`
-    );
-  }
-
-  // Get single post
-  async getPost(postId: string): Promise<Post> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.getPost(postId);
-    }
-    
-    return api.get<Post>(`${API_CONFIG.ENDPOINTS.COMMUNITY.POSTS}/${postId}`);
-  }
-
-  // Create new post
-  async createPost(postData: CreatePostRequest): Promise<Post> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.createPost(postData);
-    }
-    
-    return api.post<Post>(API_CONFIG.ENDPOINTS.COMMUNITY.POSTS, postData);
-  }
-
-  // Update post
-  async updatePost(postId: string, postData: Partial<CreatePostRequest>): Promise<Post> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.createPost({ ...postData, id: postId } as any);
-    }
-    
-    return api.put<Post>(`${API_CONFIG.ENDPOINTS.COMMUNITY.POSTS}/${postId}`, postData);
-  }
-
-  // Delete post
-  async deletePost(postId: string): Promise<void> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return Promise.resolve();
-    }
-    
-    return api.delete<void>(`${API_CONFIG.ENDPOINTS.COMMUNITY.POSTS}/${postId}`);
-  }
-
-  // Like/Unlike post
-  async toggleLike(postId: string): Promise<{ isLiked: boolean; likesCount: number }> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return Promise.resolve({ isLiked: true, likesCount: 15 });
-    }
-    
-    return api.post<{ isLiked: boolean; likesCount: number }>(
-      `${API_CONFIG.ENDPOINTS.COMMUNITY.LIKES}/${postId}`
-    );
-  }
-
-  // Get post comments
-  async getComments(postId: string, page: number = 1, limit: number = 20): Promise<PaginatedResponse<Comment>> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.getComments(postId, page, limit);
-    }
-    
-    return api.get<PaginatedResponse<Comment>>(
-      `${API_CONFIG.ENDPOINTS.COMMUNITY.COMMENTS}?postId=${postId}&page=${page}&limit=${limit}`
-    );
-  }
-
-  // Create comment
-  async createComment(commentData: CreateCommentRequest): Promise<Comment> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.createComment(commentData);
-    }
-    
-    return api.post<Comment>(API_CONFIG.ENDPOINTS.COMMUNITY.COMMENTS, commentData);
-  }
-
-  // Update comment
-  async updateComment(commentId: string, content: string): Promise<Comment> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return communityMockService.createComment({ postId: '1', content } as any);
-    }
-    
-    return api.put<Comment>(`${API_CONFIG.ENDPOINTS.COMMUNITY.COMMENTS}/${commentId}`, {
-      content,
+  /**
+   * Get posts with pagination
+   */
+  async getPosts(skip: number = 0, limit: number = 20): Promise<PostResponse[]> {
+    const response = await apiClient.get<PostResponse[]>('/posts/', {
+      params: { skip, limit }
     });
+    return response.data;
   }
 
-  // Delete comment
-  async deleteComment(commentId: string): Promise<void> {
-    if (ENV_CONFIG.USE_MOCK_DATA) {
-      return Promise.resolve();
-    }
-    
-    return api.delete<void>(`${API_CONFIG.ENDPOINTS.COMMUNITY.COMMENTS}/${commentId}`);
+  /**
+   * Get single post
+   */
+  async getPost(postId: string): Promise<PostResponse> {
+    const response = await apiClient.get<PostResponse>(`/posts/${postId}`);
+    return response.data;
+  }
+
+  /**
+   * Create new post
+   */
+  async createPost(postData: PostCreate): Promise<PostResponse> {
+    const response = await apiClient.post<PostResponse>('/posts/', postData);
+    return response.data;
+  }
+
+  /**
+   * Update post
+   */
+  async updatePost(postId: string, postData: PostUpdate): Promise<PostResponse> {
+    const response = await apiClient.put<PostResponse>(`/posts/${postId}`, postData);
+    return response.data;
+  }
+
+  /**
+   * Delete post
+   */
+  async deletePost(postId: string): Promise<void> {
+    await apiClient.delete(`/posts/${postId}`);
+  }
+
+  /**
+   * Get user posts
+   */
+  async getUserPosts(userId: string, skip: number = 0, limit: number = 20): Promise<PostResponse[]> {
+    const response = await apiClient.get<PostResponse[]>(`/posts/user/${userId}`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  }
+
+  /**
+   * Get user profile
+   */
+  async getUser(userId: string): Promise<UserProfile> {
+    const response = await apiClient.get<UserProfile>(`/users/${userId}`);
+    return response.data;
+  }
+
+  /**
+   * Add reaction to post
+   */
+  async addReaction(postId: string, reactionType: 'heart' | 'like'): Promise<PostResponse> {
+    const reactionData: ReactionRequest = { reaction_type: reactionType };
+    const response = await apiClient.post<PostResponse>(`/posts/${postId}/reactions`, reactionData);
+    return response.data;
+  }
+
+  /**
+   * Remove reaction from post
+   */
+  async removeReaction(postId: string): Promise<PostResponse> {
+    const response = await apiClient.delete<PostResponse>(`/posts/${postId}/reactions`);
+    return response.data;
+  }
+
+  /**
+   * Add comment to post
+   */
+  async addComment(postId: string, commentData: CommentRequest): Promise<PostResponse> {
+    const response = await apiClient.post<PostResponse>(`/posts/${postId}/comments`, commentData);
+    return response.data;
+  }
+
+  /**
+   * Delete comment
+   */
+  async deleteComment(postId: string, commentId: string): Promise<void> {
+    await apiClient.delete(`/posts/${postId}/comments/${commentId}`);
   }
 }
+
+export const communityService = new CommunityService();
